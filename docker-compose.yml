@@ -1,0 +1,177 @@
+networks:
+  taskmanager-network:
+    name: taskmanager-network
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+volumes:
+  postgres_data:
+    name: taskmanager_postgres_data
+  kafka_data:
+    name: taskmanager_kafka_data
+  prometheus_data:
+    name: taskmanager_prometheus_data
+  grafana_data:
+    name: taskmanager_grafana_data
+
+services:
+
+  # =========================================================================
+  # 1. PostgreSQL Datastore (Multi-Database per Service)
+  # =========================================================================
+  postgresql:
+    image: postgres:16-alpine
+    container_name: taskmanager-postgresql
+    restart: unless-stopped
+    networks:
+      - taskmanager-network
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_ROOT_PASSWORD:-postgres_master_secret}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/init-scripts/init-multi-db.sh:/docker-entrypoint-initdb.d/init-multi-db.sh:ro
+    ports:
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5434}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # =========================================================================
+  # 2. Apache Kafka 3.7+ Messaging Tier (KRaft Mode - No Zookeeper)
+  # =========================================================================
+  kafka:
+    image: apache/kafka:3.7.0
+    container_name: taskmanager-kafka
+    restart: unless-stopped
+    networks:
+      - taskmanager-network
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,PLAINTEXT_HOST://:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9094
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      CLUSTER_ID: "4L622nShTUiBENAzQqywAuthority"
+    ports:
+      - "127.0.0.1:9094:9094"
+      - "127.0.0.1:9092:9092"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
+  kafka-init:
+    image: apache/kafka:3.7.0
+    container_name: taskmanager-kafka-init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - taskmanager-network
+    entrypoint: [ "/bin/sh", "-c" ]
+    command: |
+      "
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic task-events --partitions 3 --replication-factor 1
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic task.events.v1 --partitions 3 --replication-factor 1
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic task-events.DLT --partitions 3 --replication-factor 1
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic task.events.v1.DLT --partitions 3 --replication-factor 1
+      echo 'Kafka topics created successfully.'
+      "
+    restart: "no"
+
+  # =========================================================================
+  # 3. Eureka Service Discovery
+  # =========================================================================
+  service-discovery:
+    image: taskmanager-discovery:latest
+    build:
+      context: ./service-discovery
+      dockerfile: Dockerfile
+    container_name: taskmanager-discovery
+    restart: unless-stopped
+    networks:
+      - taskmanager-network
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: 8761
+      JAVA_OPTS: "-Xms64m -Xmx192m"
+    ports:
+      - "127.0.0.1:8761:8761"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8761/actuator/health | grep UP || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # =========================================================================
+  # 4. Observability: Prometheus
+  # =========================================================================
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: taskmanager-prometheus
+    restart: unless-stopped
+    networks:
+      - taskmanager-network
+    volumes:
+      - ./infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infrastructure/prometheus/alert.rules.yml:/etc/prometheus/alert.rules.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # =========================================================================
+  # 5. Observability: Grafana
+  # =========================================================================
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: taskmanager-grafana
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    networks:
+      - taskmanager-network
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infrastructure/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "127.0.0.1:3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
