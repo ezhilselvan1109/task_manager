@@ -41,8 +41,8 @@
 | **Step 0** | **Antigravity Agent Foundation Setup** | **Completed** | [`step-00-agent-foundation-review.md`](file:///d:/learning/task_manager/documentation/implementation/phase-16/step-00-agent-foundation-review.md) | 12 Rules, 18 Skills, 15 Workflows, Execution Protocol. |
 | **Step 1** | **Infrastructure Setup & Validation** | **Completed** | [`step-01-infrastructure-review.md`](file:///d:/learning/task_manager/documentation/implementation/phase-16/step-01-infrastructure-review.md) | PostgreSQL (3 DBs), Kafka (KRaft), Eureka, Prometheus, Grafana. |
 | **Step 2** | **Flyway Database Migrations Setup** | **SKIPPED** | [`step-02-skip-record.md`](file:///d:/learning/task_manager/documentation/implementation/phase-16/step-02-skip-record.md) | Formally skipped by explicit user instruction. Deferred. |
-| **Step 3** | **Root Maven POM & Common Libraries** | **Pending** | `step-03-root-pom-and-commons-review.md` | Java 21, Spring Boot 3.3.4 parent configuration. |
-| **Step 4** | **User-Service Implementation (TDD)** | Planned | `step-04-user-service-review.md` | Registration, login, BCrypt cost 12, JWT issuance. |
+| **Step 3** | **Root Maven POM & Common Libraries** | **Completed** | [`step-03-root-pom-and-commons-review.md`](file:///d:/learning/task_manager/documentation/implementation/phase-16/step-03-root-pom-and-commons-review.md) | Java 21, Spring Boot 3.3.4 parent POM, `common` contracts library. |
+| **Step 4** | **User-Service Implementation (TDD)** | **Pending** | `step-04-user-service-review.md` | Registration, login, BCrypt cost 12, JWT issuance. |
 | **Step 5** | **API Gateway & Routing Implementation** | Planned | `step-05-api-gateway-review.md` | Reactive routes, JWT auth filter, correlation ID filter. |
 | **Step 6** | **Task-Service & Outbox Implementation** | Planned | `step-06-task-service-review.md` | Task CRUD, Outbox poller (`SKIP LOCKED`), anti-enumeration. |
 | **Step 7** | **Notification-Service Implementation** | Planned | `step-07-notification-service-review.md` | Idempotent Kafka consumer, DLT recovery, in-app storage. |
@@ -64,8 +64,9 @@
     - [`step-00-agent-foundation-review.md`](file:///d:/learning/task_manager/documentation/implementation/phase-16/step-00-agent-foundation-review.md)
     - [`step-01-infrastructure-review.md`](file:///d:/learning/task_manager/documentation/implementation/phase-16/step-01-infrastructure-review.md)
     - [`step-02-skip-record.md`](file:///d:/learning/task_manager/documentation/implementation/phase-16/step-02-skip-record.md)
+    - [`step-03-root-pom-and-commons-review.md`](file:///d:/learning/task_manager/documentation/implementation/phase-16/step-03-root-pom-and-commons-review.md)
 
 ---
 
 ## 4. Next Action
-Proceed to **Phase 16 – Step 3: Root Maven POM & Common Libraries Configuration** (authoring root `pom.xml`, dependency management with Spring Boot 3.3.4, Spring Cloud 2023.0.3, Java 21 LTS, and common shared utilities).
+Proceed to **Phase 16 – Step 4: User-Service Implementation (TDD)** (implementing user registration, BCrypt cost 12 password hashing, JWT minting with JJWT 0.12.5, user profile endpoints, and unit/integration tests with $\ge 80\%$ test coverage).
