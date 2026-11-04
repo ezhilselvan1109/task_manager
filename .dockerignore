@@ -1,0 +1,67 @@
+# =========================================================================
+# Task Management System - Global Docker Ignore (.dockerignore)
+# =========================================================================
+
+# Build Artifacts & Output
+target/
+**/target/
+dist/
+**/dist/
+build/
+**/build/
+out/
+**/out/
+
+# Dependencies
+node_modules/
+**/node_modules/
+.npm/
+
+# Environment Files & Secrets (Strictly Exclude)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+secrets/
+**/secrets/
+
+# Version Control & Metadata
+.git/
+.gitignore
+.gitattributes
+
+# IDE & Editor Files
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.classpath
+.project
+.settings/
+
+# Test & Coverage Reports
+coverage/
+**/coverage/
+*.lcov
+.nyc_output/
+
+# Logs & Temporary Files
+*.log
+logs/
+**/logs/
+*.tmp
+*.temp
+.system_generated/
+
+# Project Agent & Documentation (Not needed in runtime container builds)
+.agents/
+documentation/
+README.md
+AGENTS.md
+GEMINI.md
+

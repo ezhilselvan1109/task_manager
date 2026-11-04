@@ -1,0 +1,460 @@
+# =========================================================================
+# Task Management Platform - Production Docker Compose Configuration
+# Target: Hostinger VPS (Ubuntu 26.04 LTS, 4 vCPU, 16 GB RAM, 200 GB Disk)
+# File: docker-compose.prod.yml
+# =========================================================================
+
+name: taskmanager-prod
+
+networks:
+  taskmanager-network:
+    name: taskmanager-network
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+volumes:
+  postgres_data:
+    name: taskmanager_postgres_data
+  kafka_data:
+    name: taskmanager_kafka_data
+  prometheus_data:
+    name: taskmanager_prometheus_data
+  grafana_data:
+    name: taskmanager_grafana_data
+  certbot_conf:
+    name: taskmanager_certbot_conf
+  certbot_www:
+    name: taskmanager_certbot_www
+
+services:
+
+  # =========================================================================
+  # 1. PostgreSQL Datastore (Multi-Database per Service: user_db, task_db, notification_db)
+  # =========================================================================
+  postgresql:
+    image: postgres:16-alpine
+    container_name: taskmanager-postgresql
+    restart: unless-stopped
+    networks:
+      taskmanager-network:
+        aliases:
+          - taskmanager-postgresql
+          - postgresql
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_ROOT_PASSWORD}
+      DB_USER_PASSWORD: ${DB_USER_PASSWORD}
+      DB_TASK_PASSWORD: ${DB_TASK_PASSWORD}
+      DB_NOTIF_PASSWORD: ${DB_NOTIF_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/init-scripts/init-multi-db.sh:/docker-entrypoint-initdb.d/init-multi-db.sh:ro
+    ports:
+      # Administrative loopback only (strictly concealed from public 0.0.0.0)
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 1024M
+
+  # =========================================================================
+  # 2. Apache Kafka 3.7+ Messaging Tier (KRaft Mode - Zero Zookeeper)
+  # =========================================================================
+  kafka:
+    image: apache/kafka:3.7.0
+    container_name: taskmanager-kafka
+    restart: unless-stopped
+    networks:
+      taskmanager-network:
+        aliases:
+          - taskmanager-kafka
+          - kafka
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      CLUSTER_ID: "4L622nShTUiBENAzQqywAuthority"
+      KAFKA_JVM_PERFORMANCE_OPTS: "-XX:+UseG1GC -XX:MaxGCPauseMillis=20 -Xms512m -Xmx1024m"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 1536M
+
+  # Topic Initializer (Executes once on startup to guarantee partition & DLT topology)
+  kafka-init:
+    image: apache/kafka:3.7.0
+    container_name: taskmanager-kafka-init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - taskmanager-network
+    entrypoint: [ "/bin/sh", "-c" ]
+    command: |
+      "
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic task-events --partitions 3 --replication-factor 1
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic task-events.DLT --partitions 3 --replication-factor 1
+      echo 'Production Kafka topics created successfully.'
+      "
+    restart: "no"
+
+  # =========================================================================
+  # 3. Eureka Service Discovery Registry
+  # =========================================================================
+  service-discovery:
+    image: taskmanager-discovery:production
+    build:
+      context: .
+      dockerfile: service-discovery/Dockerfile
+    container_name: taskmanager-discovery
+    restart: unless-stopped
+    networks:
+      taskmanager-network:
+        aliases:
+          - taskmanager-discovery
+          - service-discovery
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
+      SERVER_PORT: 8761
+      JAVA_OPTS: "-XX:+UseG1GC -XX:+UseContainerSupport -Xms128m -Xmx256m -XX:+ExitOnOutOfMemoryError"
+    ports:
+      # Loopback administrative port (concealed from public interface)
+      - "127.0.0.1:8761:8761"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8761/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.75'
+          memory: 384M
+
+  # =========================================================================
+  # 4. Spring Cloud API Gateway (Ingress & Reverse Proxy)
+  # =========================================================================
+  api-gateway:
+    image: taskmanager-api-gateway:production
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    container_name: taskmanager-api-gateway
+    restart: unless-stopped
+    depends_on:
+      service-discovery:
+        condition: service_healthy
+    networks:
+      taskmanager-network:
+        aliases:
+          - taskmanager-api-gateway
+          - api-gateway
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
+      SERVER_PORT: 8080
+      JAVA_OPTS: "-XX:+UseG1GC -XX:+UseContainerSupport -Xms128m -Xmx384m -XX:+ExitOnOutOfMemoryError"
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka/
+      JWT_SECRET: ${JWT_SECRET}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+
+  # =========================================================================
+  # 5. User Microservice (Auth, Registration, BCrypt, Profile)
+  # =========================================================================
+  user-service:
+    image: taskmanager-user-service:production
+    build:
+      context: .
+      dockerfile: user-service/Dockerfile
+    container_name: taskmanager-user-service
+    restart: unless-stopped
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      service-discovery:
+        condition: service_healthy
+    networks:
+      taskmanager-network:
+        aliases:
+          - taskmanager-user-service
+          - user-service
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
+      SERVER_PORT: 8081
+      JAVA_OPTS: "-XX:+UseG1GC -XX:+UseContainerSupport -Xms128m -Xmx384m -XX:+ExitOnOutOfMemoryError"
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgresql:5432/user_db
+      SPRING_DATASOURCE_USERNAME: user_app
+      SPRING_DATASOURCE_PASSWORD: ${DB_USER_PASSWORD}
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka/
+      JWT_SECRET: ${JWT_SECRET}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 35s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+
+  # =========================================================================
+  # 6. Task Microservice (Task Domain, State Machine, Outbox Poller)
+  # =========================================================================
+  task-service:
+    image: taskmanager-task-service:production
+    build:
+      context: .
+      dockerfile: task-service/Dockerfile
+    container_name: taskmanager-task-service
+    restart: unless-stopped
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      service-discovery:
+        condition: service_healthy
+    networks:
+      taskmanager-network:
+        aliases:
+          - taskmanager-task-service
+          - task-service
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
+      SERVER_PORT: 8082
+      JAVA_OPTS: "-XX:+UseG1GC -XX:+UseContainerSupport -Xms128m -Xmx384m -XX:+ExitOnOutOfMemoryError"
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgresql:5432/task_db
+      SPRING_DATASOURCE_USERNAME: task_app
+      SPRING_DATASOURCE_PASSWORD: ${DB_TASK_PASSWORD}
+      DB_HOST: postgresql
+      DB_PORT: 5432
+      DB_USERNAME: task_app
+      DB_PASSWORD: ${DB_TASK_PASSWORD}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka/
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8082/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 35s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+
+  # =========================================================================
+  # 7. Notification Microservice (Idempotent Consumer, DLT, In-App Notifications)
+  # =========================================================================
+  notification-service:
+    image: taskmanager-notification-service:production
+    build:
+      context: .
+      dockerfile: notification-service/Dockerfile
+    container_name: taskmanager-notification-service
+    restart: unless-stopped
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      service-discovery:
+        condition: service_healthy
+    networks:
+      taskmanager-network:
+        aliases:
+          - taskmanager-notification-service
+          - notification-service
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
+      SERVER_PORT: 8083
+      JAVA_OPTS: "-XX:+UseG1GC -XX:+UseContainerSupport -Xms128m -Xmx384m -XX:+ExitOnOutOfMemoryError"
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgresql:5432/notification_db
+      SPRING_DATASOURCE_USERNAME: notification_app
+      SPRING_DATASOURCE_PASSWORD: ${DB_NOTIF_PASSWORD}
+      DB_HOST: postgresql
+      DB_PORT: 5432
+      DB_USER: notification_app
+      DB_PASS: ${DB_NOTIF_PASSWORD}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC_TASK_EVENTS: task-events
+      KAFKA_TOPIC_TASK_EVENTS_DLT: task-events.DLT
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka/
+      EUREKA_SERVER_URL: http://service-discovery:8761/eureka/
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8083/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 35s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+
+  # =========================================================================
+  # 8. Frontend Single Page Application (React 18 + Vite Production Static Bundle)
+  # =========================================================================
+  frontend:
+    image: taskmanager-frontend:production
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_GATEWAY_URL: ""
+    container_name: taskmanager-frontend
+    restart: unless-stopped
+    networks:
+      taskmanager-network:
+        aliases:
+          - taskmanager-frontend
+          - frontend
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:80/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+
+  # =========================================================================
+  # 9. Observability: Prometheus Metrics Scraper
+  # =========================================================================
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: taskmanager-prometheus
+    restart: unless-stopped
+    networks:
+      taskmanager-network:
+        aliases:
+          - taskmanager-prometheus
+          - prometheus
+    volumes:
+      - ./infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infrastructure/prometheus/alert.rules.yml:/etc/prometheus/alert.rules.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      # Administrative loopback only (strictly concealed from public 0.0.0.0)
+      - "127.0.0.1:9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    deploy:
+      resources:
+        limits:
+          cpus: '0.75'
+          memory: 512M
+
+  # =========================================================================
+  # 10. Observability: Grafana Dashboards
+  # =========================================================================
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: taskmanager-grafana
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    networks:
+      taskmanager-network:
+        aliases:
+          - taskmanager-grafana
+          - grafana
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infrastructure/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      # Administrative loopback only (strictly concealed from public 0.0.0.0)
+      - "127.0.0.1:3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+  # =========================================================================
+  # 11. Edge Reverse Proxy & TLS Gateway (Nginx)
+  # Only service exposing public HTTP (80) and HTTPS (443) ports
+  # =========================================================================
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: taskmanager-nginx
+    restart: unless-stopped
+    depends_on:
+      frontend:
+        condition: service_healthy
+      api-gateway:
+        condition: service_healthy
+    networks:
+      - taskmanager-network
+    volumes:
+      - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infrastructure/nginx/conf.d:/etc/nginx/conf.d:ro
+      - certbot_conf:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    ports:
+      - "80:80"
+      - "443:443"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:80/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
