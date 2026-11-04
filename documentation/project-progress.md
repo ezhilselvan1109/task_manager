@@ -30,7 +30,7 @@
 | **Phase 14** | **DevOps and Deployment** | **Completed** | 15 | 15 / 15 | Jenkinsfile, CI/CD, multi-stage Docker, rollback, runbooks signed off. | Completed |
 | **Phase 15** | **Observability and Maintenance** | **Completed** | 15 | 15 / 15 | Prometheus, Grafana dashboards, Actuator, Micrometer, alerts signed off. | Completed |
 | **Review** | **Final Documentation Review & Handover** | **Completed** | 1 | 1 / 1 | Final sign-off across all 15 phases (DOC-REV-001). | Completed |
-| **Phase 16**| **Application Implementation** | **Active** | 11 Steps | Steps 0, 1, 3, 4, 5, 6 Done, Step 2 Skipped | Step 2 formally skipped by user instruction. | Active |
+| **Phase 16**| **Application Implementation** | **Active** | 11 Steps | Steps 0, 1, 3, 4, 5, 6, 7 Done, Step 2 Skipped | Step 2 formally skipped by user instruction. | Active |
 
 ---
 
@@ -45,7 +45,7 @@
 | **Step 4** | **User-Service Implementation (TDD)** | **Completed** | [`step-04-user-service-review.md`](file:///d:/learning/task_manager/documentation/implementation/phase-16/step-04-user-service-review.md) | Registration, login, BCrypt cost 12, JWT issuance, 98.4% coverage. |
 | **Step 5** | **API Gateway & Routing Implementation** | **Completed** | [`step-05-api-gateway-review.md`](file:///d:/learning/task_manager/documentation/implementation/phase-16/step-05-api-gateway-review.md) | Reactive routes, JWT auth filter, TokenBucket limiter, 98.8% coverage. |
 | **Step 6** | **Task-Service & Outbox Implementation** | **Completed** | [`step-06-task-service-review.md`](file:///d:/learning/task_manager/documentation/implementation/phase-16/step-06-task-service-review.md) | Task CRUD, state machine, Outbox poller (`SKIP LOCKED`), 96.8% coverage. |
-| **Step 7** | **Notification-Service Implementation** | Planned | `step-07-notification-service-review.md` | Idempotent Kafka consumer, DLT recovery, in-app storage. |
+| **Step 7** | **Notification-Service Implementation** | **Completed** | [`step-07-notification-service-review.md`](file:///d:/learning/task_manager/documentation/implementation/phase-16/step-07-notification-service-review.md) | Idempotent Kafka consumer, DLT recovery, in-app storage, 100% line / 91.4% branch. |
 | **Step 8** | **React 18 TypeScript Frontend SPA** | Planned | `step-08-frontend-spa-review.md` | Vite, TailwindCSS, Auth views, Task board, Dashboard. |
 | **Step 9** | **Integration & Load Verification** | Planned | `step-09-testing-verification-review.md` | Testcontainers integration suite, Gatling load tests. |
 | **Step 10** | **CI/CD & Production Readiness Review** | Planned | `step-10-cicd-production-readiness-review.md` | Jenkinsfile validation, Docker image scan, final PRR. |
@@ -68,8 +68,9 @@
     - [`step-04-user-service-review.md`](file:///d:/learning/task_manager/documentation/implementation/phase-16/step-04-user-service-review.md)
     - [`step-05-api-gateway-review.md`](file:///d:/learning/task_manager/documentation/implementation/phase-16/step-05-api-gateway-review.md)
     - [`step-06-task-service-review.md`](file:///d:/learning/task_manager/documentation/implementation/phase-16/step-06-task-service-review.md)
+    - [`step-07-notification-service-review.md`](file:///d:/learning/task_manager/documentation/implementation/phase-16/step-07-notification-service-review.md)
 
 ---
 
 ## 4. Next Action
-Proceed to **Phase 16 – Step 7: Notification-Service Implementation** (implementing idempotent Kafka event consumer using `consumed_events` table, Dead Letter Topic recovery, in-app notification persistence in `notification_db`, REST endpoints for notifications, and TDD unit/slice tests).
+Proceed to **Phase 16 – Step 8: React 18 TypeScript Frontend SPA Implementation** (implementing Vite React 18 SPA with TailwindCSS, Axios client with JWT interceptor, authentication views, task board with status lanes, and in-app notification drawer).
