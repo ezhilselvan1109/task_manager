@@ -20,7 +20,7 @@ ENV VITE_API_GATEWAY_URL=${VITE_API_GATEWAY_URL}
 RUN npm run build
 
 # =========================================================================
-# Stage 2: Serve Production Assets using Hardened Nginx Alpine
+# Stage 2: Serve Production Assets using Nginx Alpine
 # =========================================================================
 FROM nginx:1.25-alpine AS runner
 
@@ -33,17 +33,10 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # Copy compiled static assets from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Hardening: Configure directories and ownership for non-root nginx user
-RUN touch /var/run/nginx.pid && \
-    chown -R nginx:nginx /var/run/nginx.pid /var/cache/nginx /var/log/nginx /usr/share/nginx/html /etc/nginx/conf.d
-
-# Switch to unprivileged nginx user
-USER nginx
-
 EXPOSE 80
 
 HEALTHCHECK --interval=10s --timeout=3s --retries=3 --start-period=5s \
-  CMD wget -q -O - http://localhost:80/healthz || exit 1
+  CMD wget -q -O - http://127.0.0.1/healthz || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]
 
