@@ -2,17 +2,18 @@ package com.taskmanager.task;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest
-@TestPropertySource(properties = {
-    "eureka.client.enabled=false",
-    "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration,org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration,org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration,org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration"
-})
+@ActiveProfiles("test")
 class TaskServiceApplicationTests {
+
+    @MockBean
+    private KafkaTemplate<String, String> kafkaTemplate;
 
     @Test
     void contextLoads() {
     }
 }
-
