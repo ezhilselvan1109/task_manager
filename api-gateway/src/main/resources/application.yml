@@ -1,0 +1,139 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: false
+      httpclient:
+        connect-timeout: 3000
+        response-timeout: 5s
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:3000"
+              - "http://127.0.0.1:3000"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - OPTIONS
+            allowedHeaders:
+              - Authorization
+              - Content-Type
+              - X-Correlation-ID
+              - X-Correlation-Id
+            exposedHeaders:
+              - X-Correlation-ID
+              - Location
+              - X-RateLimit-Limit
+              - X-RateLimit-Remaining
+              - Retry-After
+            allowCredentials: true
+            maxAge: 3600
+      routes:
+        # Route 1: User Service Authentication (Public endpoints)
+        - id: user-auth-route
+          uri: lb://user-service
+          predicates:
+            - Path=/api/v1/auth/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: userServiceCircuitBreaker
+                fallbackUri: forward:/fallback/user-service
+
+        # Route 2: User Service Profile Management (Protected endpoints)
+        - id: user-profile-route
+          uri: lb://user-service
+          predicates:
+            - Path=/api/v1/users/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: userServiceCircuitBreaker
+                fallbackUri: forward:/fallback/user-service
+
+        # Route 3: Task Service (Protected endpoints)
+        - id: task-service-route
+          uri: lb://task-service
+          predicates:
+            - Path=/api/v1/tasks/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: taskServiceCircuitBreaker
+                fallbackUri: forward:/fallback/task-service
+
+        # Route 4: Notification Service (Protected endpoints)
+        - id: notification-service-route
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/v1/notifications/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: notificationServiceCircuitBreaker
+                fallbackUri: forward:/fallback/notification-service
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10000
+        permittedNumberOfCallsInHalfOpenState: 3
+    instances:
+      userServiceCircuitBreaker:
+        baseConfig: default
+      taskServiceCircuitBreaker:
+        baseConfig: default
+      notificationServiceCircuitBreaker:
+        baseConfig: default
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: 5s
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8761/eureka/}
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+
+jwt:
+  secret: ${JWT_SECRET:dGFza21hbmFnZXItc3VwZXItc2VjcmV0LWtleS0yNTYtYml0cy1taW5pbXVtLWZvci1oczI1Ng==}
+  issuer: ${JWT_ISSUER:task-manager-auth}
+
+rate-limiter:
+  auth:
+    replenish-rate: 5
+    burst-capacity: 10
+  api:
+    replenish-rate: 60
+    burst-capacity: 20
+  actuator:
+    replenish-rate: 120
+    burst-capacity: 30
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+
