@@ -30,8 +30,10 @@ const generateCorrelationId = (): string => {
   return 'corr-' + Math.random().toString(36).substring(2, 11) + '-' + Date.now();
 };
 
+const apiGatewayUrl = import.meta.env.VITE_API_GATEWAY_URL;
+
 export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8080',
+  baseURL: apiGatewayUrl !== undefined && apiGatewayUrl !== '' ? apiGatewayUrl : '',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

@@ -33,8 +33,13 @@ ufw default allow outgoing
 
 # Allow SSH, HTTP, and HTTPS
 ufw allow 22/tcp comment 'SSH'
-ufw allow 80/tcp comment 'HTTP'
-ufw allow 443/tcp comment 'HTTPS'
+ufw allow 80/tcp comment 'HTTP (Frontend & API Gateway)'
+ufw allow 443/tcp comment 'HTTPS (TLS Gateway)'
+
+# Allow Observability & Registry Web Consoles
+ufw allow 3001/tcp comment 'Grafana Dashboard'
+ufw allow 9090/tcp comment 'Prometheus Metrics'
+ufw allow 8761/tcp comment 'Eureka Service Registry'
 
 # Enable firewall
 ufw --force enable

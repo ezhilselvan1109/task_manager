@@ -180,3 +180,59 @@ docker builder prune -af
 truncate -s 0 /var/lib/docker/containers/*/*-json.log
 ```
 
+---
+
+### Scenario 7: `taskmanager-nginx` Stuck in `Created` Status or Crashing on Boot
+
+**Symptoms**: In Hostinger Docker Manager or `docker compose ps`, `taskmanager-nginx` displays status `Created` or restarts repeatedly.  
+**Probable Causes**:
+1. Missing SSL certificates referenced in `app.conf` before Certbot has run.
+2. Dependent containers (`frontend` or `api-gateway`) failed their initial health check during compose startup.
+
+**Diagnostic Steps**:
+```bash
+docker compose -f docker-compose.prod.yml logs nginx
+```
+
+**Remediation**:
+1. Ensure `infrastructure/nginx/conf.d/app.conf` runs in HTTP-first mode on port 80 (the HTTPS 443 block must be commented out until domain certificates are generated).
+2. Start the Nginx container:
+```bash
+docker compose -f docker-compose.prod.yml up -d nginx
+```
+3. Verify status:
+```bash
+docker compose -f docker-compose.prod.yml ps nginx
+```
+
+---
+
+### Scenario 8: Browser Shows `ERR_CONNECTION_TIMED_OUT` on Port 9090, 3001, or 8761
+
+**Symptoms**: Clicking the port links in Hostinger Docker Manager or browsing `http://<VPS_IP>:9090` or `http://<VPS_IP>:3001` results in `ERR_CONNECTION_TIMED_OUT`.  
+**Probable Causes**:
+1. The container ports were bound to loopback `127.0.0.1` rather than `0.0.0.0`.
+2. Ubuntu UFW host firewall or Hostinger Cloud Firewall is dropping incoming connections on ports 3001, 9090, 8761.
+
+**Diagnostic Steps**:
+```bash
+# Check listening ports on VPS host
+ss -tulpn | grep -E ':(9090|3001|8761)'
+
+# Check UFW firewall status
+sudo ufw status verbose
+```
+
+**Remediation**:
+1. Ensure `docker-compose.prod.yml` maps ports to `"${PORT:-XXXX}:XXXX"`.
+2. Allow ports in UFW:
+```bash
+sudo ufw allow 3001/tcp comment 'Grafana'
+sudo ufw allow 9090/tcp comment 'Prometheus'
+sudo ufw allow 8761/tcp comment 'Eureka'
+sudo ufw reload
+```
+3. If using Hostinger Cloud Firewall in hPanel (Security -> Firewall), ensure a rule allows inbound TCP traffic on ports 80, 443, 3001, 9090, and 8761.
+4. Alternatively, Grafana can be accessed directly on port 80 via reverse proxy: `http://<VPS_IP>/grafana/`.
+
+
