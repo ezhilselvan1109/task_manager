@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | **Project** | Task Management System – Microservices Architecture |
-| **Current Active Phase** | Phase 16: Application Implementation – Step 2 Skipped, Step 3 Ready |
-| **Overall Progress** | Phase 1-15 Documentation Complete (100%) \| Phase 16 Implementation (Step 0 & 1 Complete, Step 2 Skipped) |
+| **Current Active Phase** | Phase 16: Application Implementation – Step 4 Complete, Step 5 Ready |
+| **Overall Progress** | Phase 1-15 Documentation Complete (100%) \| Phase 16 Implementation (Steps 0, 1, 3, 4 Complete, Step 2 Skipped) |
 | **Execution Mode** | Autonomous Step-by-Step Execution with Validation Gates |
 | **Last Updated** | 2026-11-04 |
 
@@ -42,8 +42,8 @@
 | **Step 1** | **Infrastructure Setup & Validation** | **Completed** | [`step-01-infrastructure-review.md`](file:///d:/learning/task_manager/documentation/implementation/phase-16/step-01-infrastructure-review.md) | PostgreSQL (3 DBs), Kafka (KRaft), Eureka, Prometheus, Grafana. |
 | **Step 2** | **Flyway Database Migrations Setup** | **SKIPPED** | [`step-02-skip-record.md`](file:///d:/learning/task_manager/documentation/implementation/phase-16/step-02-skip-record.md) | Formally skipped by explicit user instruction. Deferred. |
 | **Step 3** | **Root Maven POM & Common Libraries** | **Completed** | [`step-03-root-pom-and-commons-review.md`](file:///d:/learning/task_manager/documentation/implementation/phase-16/step-03-root-pom-and-commons-review.md) | Java 21, Spring Boot 3.3.4 parent POM, `common` contracts library. |
-| **Step 4** | **User-Service Implementation (TDD)** | **Pending** | `step-04-user-service-review.md` | Registration, login, BCrypt cost 12, JWT issuance. |
-| **Step 5** | **API Gateway & Routing Implementation** | Planned | `step-05-api-gateway-review.md` | Reactive routes, JWT auth filter, correlation ID filter. |
+| **Step 4** | **User-Service Implementation (TDD)** | **Completed** | [`step-04-user-service-review.md`](file:///d:/learning/task_manager/documentation/implementation/phase-16/step-04-user-service-review.md) | Registration, login, BCrypt cost 12, JWT issuance, 98.4% coverage. |
+| **Step 5** | **API Gateway & Routing Implementation** | **Pending** | `step-05-api-gateway-review.md` | Reactive routes, JWT auth filter, correlation ID filter. |
 | **Step 6** | **Task-Service & Outbox Implementation** | Planned | `step-06-task-service-review.md` | Task CRUD, Outbox poller (`SKIP LOCKED`), anti-enumeration. |
 | **Step 7** | **Notification-Service Implementation** | Planned | `step-07-notification-service-review.md` | Idempotent Kafka consumer, DLT recovery, in-app storage. |
 | **Step 8** | **React 18 TypeScript Frontend SPA** | Planned | `step-08-frontend-spa-review.md` | Vite, TailwindCSS, Auth views, Task board, Dashboard. |
@@ -65,8 +65,9 @@
     - [`step-01-infrastructure-review.md`](file:///d:/learning/task_manager/documentation/implementation/phase-16/step-01-infrastructure-review.md)
     - [`step-02-skip-record.md`](file:///d:/learning/task_manager/documentation/implementation/phase-16/step-02-skip-record.md)
     - [`step-03-root-pom-and-commons-review.md`](file:///d:/learning/task_manager/documentation/implementation/phase-16/step-03-root-pom-and-commons-review.md)
+    - [`step-04-user-service-review.md`](file:///d:/learning/task_manager/documentation/implementation/phase-16/step-04-user-service-review.md)
 
 ---
 
 ## 4. Next Action
-Proceed to **Phase 16 – Step 4: User-Service Implementation (TDD)** (implementing user registration, BCrypt cost 12 password hashing, JWT minting with JJWT 0.12.5, user profile endpoints, and unit/integration tests with $\ge 80\%$ test coverage).
+Proceed to **Phase 16 – Step 5: API Gateway & Routing Implementation** (configuring Spring Cloud Gateway reactive routing, JWT authentication filter, route rate limiting, CORS, and correlation ID injection).
