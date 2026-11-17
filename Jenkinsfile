@@ -59,6 +59,7 @@ pipeline {
                     cd /opt/taskmanager
                     git pull origin main
                     docker compose -f docker-compose.prod.yml up -d
+                    docker exec taskmanager-nginx nginx -s reload || true
                 '''
             }
         }
