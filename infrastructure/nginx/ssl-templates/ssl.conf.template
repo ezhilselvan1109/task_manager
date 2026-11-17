@@ -1,0 +1,236 @@
+# =========================================================================
+# Task Management Platform - Hardened TLS 1.2/1.3 HTTPS Virtual Hosts
+# Activated into infrastructure/nginx/ssl-enabled/ssl.conf after Certbot issuance
+# =========================================================================
+
+# 1. Primary Web App: https://ezhilselvan.tech, https://www.ezhilselvan.tech, https://app.ezhilselvan.tech
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name ezhilselvan.tech www.ezhilselvan.tech app.ezhilselvan.tech;
+
+    ssl_certificate /etc/letsencrypt/live/ezhilselvan.tech/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/ezhilselvan.tech/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+    ssl_session_tickets off;
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    location /healthz {
+        access_log off;
+        return 200 "healthy\n";
+        add_header Content-Type text/plain;
+    }
+
+    location /api/ {
+        proxy_pass http://gateway_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Correlation-ID $http_x_correlation_id;
+        client_max_body_size 10M;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 60s;
+        proxy_send_timeout 60s;
+    }
+
+    location / {
+        proxy_pass http://frontend_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+}
+
+# 2. API Gateway: https://api.ezhilselvan.tech
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name api.ezhilselvan.tech;
+
+    ssl_certificate /etc/letsencrypt/live/ezhilselvan.tech/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/ezhilselvan.tech/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    location / {
+        proxy_pass http://gateway_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Correlation-ID $http_x_correlation_id;
+        client_max_body_size 10M;
+    }
+}
+
+# 3. Jenkins CI/CD: https://jenkins.ezhilselvan.tech
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name jenkins.ezhilselvan.tech;
+
+    ssl_certificate /etc/letsencrypt/live/ezhilselvan.tech/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/ezhilselvan.tech/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    location / {
+        set $jenkins_backend http://jenkins:8080;
+        proxy_pass $jenkins_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Port 443;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 120s;
+        proxy_request_buffering off;
+        client_max_body_size 50M;
+    }
+}
+
+# 4. Grafana: https://grafana.ezhilselvan.tech
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name grafana.ezhilselvan.tech;
+
+    ssl_certificate /etc/letsencrypt/live/ezhilselvan.tech/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/ezhilselvan.tech/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    location / {
+        proxy_pass http://grafana_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+
+# 5. Prometheus: https://prometheus.ezhilselvan.tech
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name prometheus.ezhilselvan.tech;
+
+    ssl_certificate /etc/letsencrypt/live/ezhilselvan.tech/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/ezhilselvan.tech/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    location / {
+        proxy_pass http://prometheus_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+}
+
+# 6. Alertmanager: https://alerts.ezhilselvan.tech
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name alerts.ezhilselvan.tech;
+
+    ssl_certificate /etc/letsencrypt/live/ezhilselvan.tech/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/ezhilselvan.tech/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    location / {
+        proxy_pass http://alertmanager_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+}
+
+# 7. cAdvisor: https://cadvisor.ezhilselvan.tech
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name cadvisor.ezhilselvan.tech;
+
+    ssl_certificate /etc/letsencrypt/live/ezhilselvan.tech/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/ezhilselvan.tech/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    location / {
+        proxy_pass http://cadvisor_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+}
+
+# 8. Eureka: https://eureka.ezhilselvan.tech
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name eureka.ezhilselvan.tech;
+
+    ssl_certificate /etc/letsencrypt/live/ezhilselvan.tech/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/ezhilselvan.tech/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    location / {
+        proxy_pass http://eureka_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+}
+
+# 9. Kubernetes (k3s) App: https://k8s.ezhilselvan.tech
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name k8s.ezhilselvan.tech;
+
+    ssl_certificate /etc/letsencrypt/live/ezhilselvan.tech/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/ezhilselvan.tech/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    location / {
+        proxy_pass http://host.docker.internal:30080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Correlation-ID $http_x_correlation_id;
+    }
+}

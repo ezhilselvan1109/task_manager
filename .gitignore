@@ -38,3 +38,6 @@ frontend/.env.*
 logs/
 **/logs/
 
+### Runtime-Activated Nginx SSL Config ###
+infrastructure/nginx/ssl-enabled/*.conf
+

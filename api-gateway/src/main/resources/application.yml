@@ -18,6 +18,13 @@ spring:
             allowedOrigins:
               - "http://localhost:3000"
               - "http://127.0.0.1:3000"
+              - "https://ezhilselvan.tech"
+              - "https://www.ezhilselvan.tech"
+              - "https://app.ezhilselvan.tech"
+              - "https://k8s.ezhilselvan.tech"
+              - "http://ezhilselvan.tech"
+              - "http://www.ezhilselvan.tech"
+              - "http://app.ezhilselvan.tech"
             allowedMethods:
               - GET
               - POST
