@@ -26,3 +26,4 @@ The initial baseline (`ADR-002`, `RULE-04`) selected PostgreSQL 16 as the relati
 ## 3. Consequences
 - **Positive**: Meets project owner's MySQL operational requirement; preserves 100% REST API compatibility, Database-per-Service isolation, Transactional Outbox `SKIP LOCKED` semantics, and Consumer Idempotency.
 - **Trade-offs**: Existing PostgreSQL volumes on the VPS are retired and replaced by fresh MySQL 8.4 volumes initialized via Flyway `V1_0` migrations; PostgreSQL partial indexes (`WHERE ...`) are converted to standard composite B-Tree indexes (`(user_id, is_deleted, ...)`).
+
