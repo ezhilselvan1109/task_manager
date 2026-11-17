@@ -4,6 +4,7 @@ metadata:
   name: kafka
   namespace: taskmanager
 spec:
+  publishNotReadyAddresses: true
   ports:
     - port: 9092
       targetPort: 9092
@@ -50,7 +51,7 @@ spec:
             - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
               value: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
             - name: KAFKA_CONTROLLER_QUORUM_VOTERS
-              value: "1@kafka:9093"
+              value: "1@127.0.0.1:9093"
             - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
               value: "1"
             - name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
@@ -98,3 +99,4 @@ spec:
               /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic task-events --partitions 3 --replication-factor 1
               /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic task-events.DLT --partitions 3 --replication-factor 1
               echo "Kafka topics initialized in Kubernetes"
+
