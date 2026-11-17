@@ -53,11 +53,11 @@ pipeline {
 
         stage('Deploy to Docker Production Stack') {
             steps {
-                echo 'Deploying updated containers to Hostinger VPS production stack...'
+                echo 'Deploying updated containers from host-aligned /opt/taskmanager directory...'
                 sh '''
-                    if [ -f /opt/taskmanager/.env ]; then
-                        cp /opt/taskmanager/.env .env
-                    fi
+                    git config --global --add safe.directory /opt/taskmanager
+                    cd /opt/taskmanager
+                    git pull origin main
                     docker compose -f docker-compose.prod.yml up -d
                 '''
             }
@@ -67,9 +67,9 @@ pipeline {
             steps {
                 echo 'Verifying microservice mesh and reverse proxy health...'
                 sh '''
-                    sleep 15
-                    curl -fsS http://taskmanager-nginx/healthz || curl -fsS http://172.28.0.1/healthz || true
-                    docker compose -f docker-compose.prod.yml ps
+                    sleep 10
+                    curl -fsS http://taskmanager-nginx/healthz
+                    cd /opt/taskmanager && docker compose -f docker-compose.prod.yml ps
                 '''
             }
         }
