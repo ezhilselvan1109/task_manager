@@ -234,3 +234,4 @@ server {
         proxy_set_header X-Correlation-ID $http_x_correlation_id;
     }
 }
+

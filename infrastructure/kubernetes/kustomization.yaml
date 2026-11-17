@@ -14,3 +14,4 @@ resources:
   - 08-task-service.yaml
   - 09-notification-service.yaml
   - 10-frontend.yaml
+

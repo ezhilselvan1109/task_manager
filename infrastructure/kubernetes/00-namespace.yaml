@@ -4,3 +4,4 @@ metadata:
   name: taskmanager
   labels:
     app.kubernetes.io/part-of: taskmanager-platform
+

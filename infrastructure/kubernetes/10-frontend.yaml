@@ -102,3 +102,4 @@ spec:
         - name: nginx-conf
           configMap:
             name: k8s-nginx-config
+
