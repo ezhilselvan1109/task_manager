@@ -1,0 +1,106 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  namespace: taskmanager
+spec:
+  ports:
+    - port: 8081
+      targetPort: 8081
+      name: http
+  selector:
+    app: user-service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: taskmanager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/actuator/prometheus"
+        prometheus.io/port: "8081"
+    spec:
+      containers:
+        - name: user-service
+          image: docker.io/library/taskmanager-user-service:production
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8081
+          envFrom:
+            - configMapRef:
+                name: taskmanager-config
+          env:
+            - name: SERVER_PORT
+              value: "8081"
+            - name: JAVA_OPTS
+              value: "-XX:+UseG1GC -XX:+UseContainerSupport -Xms128m -Xmx256m"
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://postgresql:5432/user_db"
+            - name: SPRING_DATASOURCE_USERNAME
+              value: "user_app"
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: taskmanager-secrets
+                  key: DB_USER_PASSWORD
+            - name: DB_USER
+              value: "user_app"
+            - name: DB_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: taskmanager-secrets
+                  key: DB_USER_PASSWORD
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: taskmanager-secrets
+                  key: JWT_SECRET
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8081
+            initialDelaySeconds: 35
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8081
+            initialDelaySeconds: 60
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "448Mi"
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: user-service-hpa
+  namespace: taskmanager
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: user-service
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 75

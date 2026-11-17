@@ -1,0 +1,36 @@
+jenkins:
+  systemMessage: "Task Management Microservices - Production Jenkins CI/CD Server"
+  numExecutors: 2
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "admin"
+          password: "${JENKINS_ADMIN_PASSWORD:-TaskManagerAdmin2026!}"
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+
+unclassified:
+  location:
+    url: "${JENKINS_URL:-http://201.18.206.239:8080/}"
+
+jobs:
+  - script: >
+      pipelineJob('task-manager-pipeline') {
+        displayName('Task Manager Microservices CI/CD')
+        description('Automated Java 21 + React 18 + Docker + Kubernetes CI/CD pipeline for Task Management System')
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote {
+                  url('https://github.com/ezhilselvan1109/task_manager.git')
+                }
+                branches('*/main')
+              }
+            }
+            scriptPath('Jenkinsfile')
+          }
+        }
+      }

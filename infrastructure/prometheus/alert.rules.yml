@@ -1,5 +1,5 @@
 groups:
-  - name: taskmanager-alerts
+  - name: taskmanager-microservices-alerts
     rules:
       - alert: ServiceDown
         expr: up{job="spring-boot-services"} == 0
@@ -8,10 +8,10 @@ groups:
           severity: critical
         annotations:
           summary: "Microservice instance {{ $labels.instance }} is down"
-          description: "Service has been unreachable for more than 1 minute."
+          description: "Service {{ $labels.instance }} has been unreachable for more than 1 minute."
 
       - alert: HighHttpErrorRate
-        expr: rate(http_server_requests_seconds_count{status=~"5.."}[5m]) / rate(http_server_requests_seconds_count[5m]) * 100 > 5
+        expr: sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m])) by (instance) / sum(rate(http_server_requests_seconds_count[5m])) by (instance) * 100 > 5
         for: 5m
         labels:
           severity: critical
@@ -20,11 +20,48 @@ groups:
           description: "HTTP 5xx error rate exceeds 5% for 5 minutes."
 
       - alert: HighTaskServiceLatency
-        expr: histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket[5m])) by (le)) > 0.5
+        expr: histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket[5m])) by (le, instance)) > 0.5
         for: 5m
         labels:
           severity: warning
         annotations:
-          summary: "High P95 latency (> 500ms)"
+          summary: "High P95 latency (> 500ms) on {{ $labels.instance }}"
           description: "P95 request duration exceeded 500ms for 5 minutes."
 
+      - alert: HighJvmHeapUsage
+        expr: sum(jvm_memory_used_bytes{area="heap"}) by (instance) / sum(jvm_memory_max_bytes{area="heap"}) by (instance) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High JVM Heap usage (> 85%) on {{ $labels.instance }}"
+          description: "JVM Heap memory utilization exceeded 85% for 5 minutes."
+
+  - name: taskmanager-infrastructure-alerts
+    rules:
+      - alert: HighHostCpuUsage
+        expr: 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "VPS CPU usage > 85%"
+          description: "Host CPU utilization has exceeded 85% for 5 minutes."
+
+      - alert: HighHostMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "VPS Memory usage > 85%"
+          description: "Host memory utilization has exceeded 85% for 5 minutes."
+
+      - alert: LowHostDiskSpace
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 15
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "VPS Root Disk Space < 15%"
+          description: "Less than 15% disk space remaining on root volume."

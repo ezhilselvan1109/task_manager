@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: taskmanager
+
+resources:
+  - 00-namespace.yaml
+  - 01-configmap.yaml
+  - 03-postgresql.yaml
+  - 04-kafka.yaml
+  - 05-service-discovery.yaml
+  - 06-api-gateway.yaml
+  - 07-user-service.yaml
+  - 08-task-service.yaml
+  - 09-notification-service.yaml
+  - 10-frontend.yaml

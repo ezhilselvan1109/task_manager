@@ -1,6 +1,11 @@
 global:
-  scrape_interval: 10s
-  evaluation_interval: 10s
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
 
 rule_files:
   - "alert.rules.yml"
@@ -21,3 +26,18 @@ scrape_configs:
           - 'taskmanager-task-service:8082'
           - 'taskmanager-notification-service:8083'
 
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+
+  - job_name: 'alertmanager'
+    static_configs:
+      - targets: ['alertmanager:9093']
+
+  - job_name: 'loki'
+    static_configs:
+      - targets: ['loki:3100']

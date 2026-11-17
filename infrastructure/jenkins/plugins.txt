@@ -1,0 +1,11 @@
+git:latest
+workflow-aggregator:latest
+pipeline-stage-view:latest
+junit:latest
+credentials-binding:latest
+docker-workflow:latest
+configuration-as-code:latest
+job-dsl:latest
+timestamper:latest
+prometheus:latest
+matrix-auth:latest

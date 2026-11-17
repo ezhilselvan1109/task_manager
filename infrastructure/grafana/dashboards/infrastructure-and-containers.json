@@ -1,0 +1,63 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "max": 100, "min": 0, "unit": "percent" } },
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 0 },
+      "id": 1,
+      "targets": [{ "expr": "100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\"}[2m])) * 100)", "legendFormat": "Host CPU %", "refId": "A" }],
+      "title": "VPS Host CPU Utilization",
+      "type": "gauge"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "max": 100, "min": 0, "unit": "percent" } },
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 0 },
+      "id": 2,
+      "targets": [{ "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100", "legendFormat": "Host RAM %", "refId": "A" }],
+      "title": "VPS Host Memory Utilization",
+      "type": "gauge"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "max": 100, "min": 0, "unit": "percent" } },
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 0 },
+      "id": 3,
+      "targets": [{ "expr": "(1 - (node_filesystem_avail_bytes{mountpoint=\"/\"} / node_filesystem_size_bytes{mountpoint=\"/\"})) * 100", "legendFormat": "Root Disk %", "refId": "A" }],
+      "title": "VPS Root Disk Usage",
+      "type": "gauge"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "bytes" } },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 6 },
+      "id": 4,
+      "targets": [{ "expr": "topk(15, container_memory_working_set_bytes{name!=\"\"})", "legendFormat": "{{name}}", "refId": "A" }],
+      "title": "Docker Container Memory Usage (cAdvisor)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percentunit" } },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 6 },
+      "id": 5,
+      "targets": [{ "expr": "topk(15, rate(container_cpu_usage_seconds_total{name!=\"\"}[2m]))", "legendFormat": "{{name}}", "refId": "A" }],
+      "title": "Docker Container CPU Usage (cAdvisor)",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "15s",
+  "schemaVersion": 39,
+  "tags": ["vps", "docker", "infrastructure"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "title": "Hostinger VPS & Docker Containers Telemetry",
+  "uid": "taskmanager-infra"
+}

@@ -1,0 +1,51 @@
+# =========================================================================
+# Task Management Platform - Jenkins CI/CD Stack
+# File: docker-compose.cicd.yml
+# =========================================================================
+
+name: taskmanager-cicd
+
+networks:
+  taskmanager-network:
+    external: true
+
+volumes:
+  jenkins_home:
+    name: taskmanager_jenkins_home
+
+services:
+  jenkins:
+    build:
+      context: ./infrastructure/jenkins
+      dockerfile: Dockerfile
+    image: taskmanager-jenkins:production
+    container_name: taskmanager-jenkins
+    restart: unless-stopped
+    user: root
+    networks:
+      taskmanager-network:
+        aliases:
+          - taskmanager-jenkins
+          - jenkins
+    ports:
+      - "${JENKINS_HOST_PORT:-8080}:8080"
+      - "50000:50000"
+    environment:
+      JENKINS_ADMIN_PASSWORD: ${JENKINS_ADMIN_PASSWORD}
+      JENKINS_URL: ${JENKINS_URL:-http://201.18.206.239:8080/}
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/taskmanager:/opt/taskmanager:ro
+      - /etc/rancher/k3s/k3s.yaml:/root/.kube/config:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/login > /dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 1536M
