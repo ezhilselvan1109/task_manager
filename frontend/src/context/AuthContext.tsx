@@ -51,11 +51,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  const handleAuthSuccess = (response: AuthResponse) => {
+  const handleAuthSuccess = async (response: AuthResponse, fallbackUser?: Partial<User>) => {
     setAuthToken(response.accessToken);
-    setRefreshToken(response.refreshToken);
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(response.user));
-    setUser(response.user);
+    if (response.refreshToken) {
+      setRefreshToken(response.refreshToken);
+    }
+
+    let resolvedUser: User | null = response.user ?? null;
+    if (!resolvedUser) {
+      try {
+        resolvedUser = await authApi.getCurrentUser();
+      } catch {
+        if (fallbackUser?.email) {
+          resolvedUser = {
+            id: fallbackUser.id ?? '',
+            email: fallbackUser.email,
+            fullName: fallbackUser.fullName ?? fallbackUser.email,
+            role: fallbackUser.role ?? 'USER',
+          };
+        }
+      }
+    }
+
+    if (resolvedUser) {
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(resolvedUser));
+      setUser(resolvedUser);
+    }
     setAccessTokenState(response.accessToken);
   };
 
@@ -63,7 +84,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     try {
       const response = await authApi.login(credentials);
-      handleAuthSuccess(response);
+      await handleAuthSuccess(response, { email: credentials.email });
       return response;
     } finally {
       setIsLoading(false);
@@ -73,9 +94,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const register = async (data: RegisterRequest): Promise<AuthResponse> => {
     setIsLoading(true);
     try {
-      const response = await authApi.register(data);
-      handleAuthSuccess(response);
-      return response;
+      const registerResponse = await authApi.register(data);
+      if (registerResponse && registerResponse.accessToken) {
+        await handleAuthSuccess(registerResponse, {
+          email: data.email,
+          fullName: data.fullName,
+        });
+        return registerResponse;
+      }
+
+      // Backend POST /api/v1/auth/register returns 201 UserProfileResponse;
+      // seamlessly sign in to obtain JWT access and refresh tokens.
+      const registeredProfile = registerResponse as unknown as Partial<User>;
+      const loginResponse = await authApi.login({
+        email: data.email,
+        password: data.password,
+      });
+      await handleAuthSuccess(loginResponse, {
+        id: registeredProfile?.id,
+        email: registeredProfile?.email ?? data.email,
+        fullName: registeredProfile?.fullName ?? data.fullName,
+        role: 'USER',
+      });
+      return loginResponse;
     } finally {
       setIsLoading(false);
     }

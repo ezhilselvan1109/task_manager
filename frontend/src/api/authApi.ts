@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import { AuthResponse, LoginRequest, RefreshTokenRequest, RegisterRequest } from '../types/auth';
+import { AuthResponse, LoginRequest, RefreshTokenRequest, RegisterRequest, User } from '../types/auth';
 
 export const authApi = {
   register: async (data: RegisterRequest): Promise<AuthResponse> => {
@@ -14,6 +14,11 @@ export const authApi = {
 
   refreshToken: async (data: RefreshTokenRequest): Promise<AuthResponse> => {
     const response = await apiClient.post<AuthResponse>('/api/v1/auth/refresh', data);
+    return response.data;
+  },
+
+  getCurrentUser: async (): Promise<User> => {
+    const response = await apiClient.get<User>('/api/v1/users/me');
     return response.data;
   },
 };

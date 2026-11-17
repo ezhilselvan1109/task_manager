@@ -62,7 +62,7 @@ public interface TaskRepository extends JpaRepository<TaskEntity, UUID> {
         SELECT t FROM TaskEntity t
         WHERE t.userId = :userId
           AND t.deleted = false
-          AND (:query IS NULL OR LOWER(t.title) LIKE LOWER(CONCAT('%', :query, '%')) OR (t.description IS NOT NULL AND LOWER(t.description) LIKE LOWER(CONCAT('%', :query, '%'))))
+          AND (CAST(:query AS string) IS NULL OR LOWER(t.title) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%')) OR (t.description IS NOT NULL AND LOWER(t.description) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%'))))
           AND (:statuses IS NULL OR t.status IN :statuses)
           AND (:priorities IS NULL OR t.priority IN :priorities)
           AND (CAST(:dueFrom AS timestamp) IS NULL OR t.dueDate >= :dueFrom)
