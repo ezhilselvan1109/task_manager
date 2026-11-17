@@ -1,6 +1,6 @@
 # =========================================================================
 # Task Management Platform - Hardened TLS 1.2/1.3 HTTPS Virtual Hosts
-# Activated into infrastructure/nginx/ssl-enabled/ssl.conf after Certbot issuance
+# Uses dynamic Docker DNS resolution (127.0.0.11 valid=10s) to prevent stale 502s.
 # =========================================================================
 
 # 1. Primary Web App: https://ezhilselvan.tech, https://www.ezhilselvan.tech, https://app.ezhilselvan.tech
@@ -29,7 +29,8 @@ server {
     }
 
     location /api/ {
-        proxy_pass http://gateway_upstream;
+        set $gateway_backend http://api-gateway:8080;
+        proxy_pass $gateway_backend;
         proxy_http_version 1.1;
         proxy_set_header Connection "";
         proxy_set_header Host $host;
@@ -44,7 +45,8 @@ server {
     }
 
     location / {
-        proxy_pass http://frontend_upstream;
+        set $frontend_backend http://frontend:80;
+        proxy_pass $frontend_backend;
         proxy_http_version 1.1;
         proxy_set_header Connection "";
         proxy_set_header Host $host;
@@ -65,8 +67,14 @@ server {
     ssl_certificate_key /etc/letsencrypt/live/ezhilselvan.tech/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
 
+    location = / {
+        default_type application/json;
+        return 200 '{"service":"Task Manager API Gateway","status":"UP","health":"/actuator/health","endpoints":["/api/v1/auth/register","/api/v1/auth/login","/api/v1/users/me","/api/v1/tasks","/api/v1/notifications"]}';
+    }
+
     location / {
-        proxy_pass http://gateway_upstream;
+        set $gateway_backend http://api-gateway:8080;
+        proxy_pass $gateway_backend;
         proxy_http_version 1.1;
         proxy_set_header Connection "";
         proxy_set_header Host $host;
@@ -118,7 +126,8 @@ server {
     ssl_protocols TLSv1.2 TLSv1.3;
 
     location / {
-        proxy_pass http://grafana_upstream;
+        set $grafana_backend http://grafana:3000;
+        proxy_pass $grafana_backend;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -141,7 +150,8 @@ server {
     ssl_protocols TLSv1.2 TLSv1.3;
 
     location / {
-        proxy_pass http://prometheus_upstream;
+        set $prometheus_backend http://prometheus:9090;
+        proxy_pass $prometheus_backend;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -162,7 +172,8 @@ server {
     ssl_protocols TLSv1.2 TLSv1.3;
 
     location / {
-        proxy_pass http://alertmanager_upstream;
+        set $alertmanager_backend http://alertmanager:9093;
+        proxy_pass $alertmanager_backend;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -183,7 +194,8 @@ server {
     ssl_protocols TLSv1.2 TLSv1.3;
 
     location / {
-        proxy_pass http://cadvisor_upstream;
+        set $cadvisor_backend http://cadvisor:8080;
+        proxy_pass $cadvisor_backend;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -204,7 +216,8 @@ server {
     ssl_protocols TLSv1.2 TLSv1.3;
 
     location / {
-        proxy_pass http://eureka_upstream;
+        set $eureka_backend http://service-discovery:8761;
+        proxy_pass $eureka_backend;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -234,4 +247,3 @@ server {
         proxy_set_header X-Correlation-ID $http_x_correlation_id;
     }
 }
-
