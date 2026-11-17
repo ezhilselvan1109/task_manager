@@ -5,22 +5,26 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
 
 /**
  * JPA entity mapping the outbox_events table in task_db.
- * Implements the Transactional Outbox pattern for dual-write elimination according to ADR-005.
+ * Implements the Transactional Outbox pattern for dual-write elimination according to ADR-005 and ADR-009.
  */
 @Entity
 @Table(name = "outbox_events", indexes = {
-        @Index(name = "idx_outbox_pending_poller", columnList = "created_at"),
+        @Index(name = "idx_outbox_pending_poller", columnList = "processed, created_at"),
         @Index(name = "idx_outbox_aggregate", columnList = "aggregate_id")
 })
 public class OutboxEventEntity {
 
     @Id
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "id", length = 36, columnDefinition = "CHAR(36)")
     private UUID id;
 
     @Column(name = "aggregate_id", nullable = false, length = 64)

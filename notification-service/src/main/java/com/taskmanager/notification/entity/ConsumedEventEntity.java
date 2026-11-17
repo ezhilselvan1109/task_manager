@@ -8,13 +8,15 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
 
 /**
  * Entity maintaining consumed event IDs to enforce consumer idempotency (RULE-07).
- * Conforms to ADR-006, DOC-EVT-013, and DOC-DEV-006.
+ * Conforms to ADR-006, ADR-009, DOC-EVT-013, and DOC-DEV-006.
  */
 @Entity
 @Table(name = "consumed_events")
@@ -25,7 +27,8 @@ import java.util.UUID;
 public class ConsumedEventEntity {
 
     @Id
-    @Column(name = "event_id", nullable = false)
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "event_id", nullable = false, length = 36, columnDefinition = "CHAR(36)")
     private UUID eventId;
 
     @Column(name = "event_type", length = 50)

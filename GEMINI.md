@@ -4,7 +4,7 @@
 - **Application**: Multi-tenant Task Management System built with Java 21 and React 18.
 - **Repository**: `D:\learning\task_manager`
 - **Architecture**: Strict Microservices with Database-per-Service, Eureka Service Discovery, Spring Cloud Gateway, and Apache Kafka Event-Driven Architecture.
-- **Approved SDLC Baseline**: All architectural decisions (`ADR-001` through `ADR-008`), schemas, APIs, and runbooks are finalized in `documentation/`. Always consult these documents before modifying or adding code.
+- **Approved SDLC Baseline**: All architectural decisions (`ADR-001` through `ADR-009`), schemas, APIs, and runbooks are finalized in `documentation/`. Always consult these documents before modifying or adding code.
 
 ## 2. Inviolable Core Rules
 1. **`RULE-01`: Documentation-Aligned Implementation**: All code, schemas, and configurations must match the approved SDLC documentation (`documentation/`). Deviations require formal ADR updates.
@@ -17,7 +17,7 @@
 4. **`RULE-04`: Technology Stack Inviolability**:
    - Runtime: Java 21 LTS, Eclipse Temurin 21 Alpine JRE.
    - Backend: Spring Boot 3.3.4, Spring Cloud 2023.0.3, Spring Data JPA, Hibernate 6.5.x, Maven.
-   - Persistence: PostgreSQL 16 with versioned Flyway migrations (`V1__...sql`).
+   - Persistence: MySQL 8.4 LTS (per `ADR-009`) with versioned Flyway migrations (`V1_0__...sql`) and `CHAR(36)` UUID keys.
    - Messaging: Apache Kafka 3.7+ (KRaft mode). **RabbitMQ is strictly prohibited**.
    - Frontend: React 18, TypeScript 5, Vite, TailwindCSS.
    - Infrastructure: Docker Compose, Prometheus, Grafana, Jenkins. **Zero paid third-party cloud services or SaaS APIs**.

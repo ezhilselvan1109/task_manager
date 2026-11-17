@@ -13,29 +13,34 @@ import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
 
 /**
  * JPA entity representing tasks in task_db.
- * Conforms to DOC-DB-004 and DOC-DEV-005.
+ * Conforms to DOC-DB-004, DOC-DEV-005, and ADR-009 (MySQL 8.4 CHAR(36) UUID).
  */
 @Entity
 @Table(name = "tasks", indexes = {
-        @Index(name = "idx_tasks_user_active", columnList = "user_id"),
-        @Index(name = "idx_tasks_user_status", columnList = "user_id, status"),
-        @Index(name = "idx_tasks_user_priority", columnList = "user_id, priority"),
-        @Index(name = "idx_tasks_user_due_date", columnList = "user_id, due_date")
+        @Index(name = "idx_tasks_user_active", columnList = "user_id, is_deleted"),
+        @Index(name = "idx_tasks_user_status", columnList = "user_id, is_deleted, status"),
+        @Index(name = "idx_tasks_user_priority", columnList = "user_id, is_deleted, priority"),
+        @Index(name = "idx_tasks_user_due_date", columnList = "user_id, is_deleted, due_date")
 })
 public class TaskEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "id", length = 36, columnDefinition = "CHAR(36)")
     private UUID id;
 
-    @Column(name = "user_id", nullable = false)
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "user_id", nullable = false, length = 36, columnDefinition = "CHAR(36)")
     private UUID userId;
 
     @Column(nullable = false, length = 255)

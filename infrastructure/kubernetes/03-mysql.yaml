@@ -1,45 +1,48 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: postgresql
+  name: mysql
   namespace: taskmanager
 spec:
   ports:
-    - port: 5432
-      targetPort: 5432
-      name: postgres
+    - port: 3306
+      targetPort: 3306
+      name: mysql
   selector:
-    app: postgresql
+    app: mysql
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: postgresql
+  name: mysql
   namespace: taskmanager
 spec:
-  serviceName: postgresql
+  serviceName: mysql
   replicas: 1
   selector:
     matchLabels:
-      app: postgresql
+      app: mysql
   template:
     metadata:
       labels:
-        app: postgresql
+        app: mysql
     spec:
       containers:
-        - name: postgresql
-          image: postgres:16-alpine
+        - name: mysql
+          image: mysql:8.4
+          args:
+            - "--character-set-server=utf8mb4"
+            - "--collation-server=utf8mb4_0900_ai_ci"
+            - "--innodb-buffer-pool-size=256M"
+            - "--max-connections=150"
           ports:
-            - containerPort: 5432
+            - containerPort: 3306
           env:
-            - name: POSTGRES_USER
-              value: "postgres"
-            - name: POSTGRES_PASSWORD
+            - name: MYSQL_ROOT_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: taskmanager-secrets
-                  key: POSTGRES_ROOT_PASSWORD
+                  key: MYSQL_ROOT_PASSWORD
             - name: DB_USER_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -55,36 +58,33 @@ spec:
                 secretKeyRef:
                   name: taskmanager-secrets
                   key: DB_NOTIF_PASSWORD
-            - name: PGDATA
-              value: /var/lib/postgresql/data/pgdata
           volumeMounts:
-            - name: postgres-storage
-              mountPath: /var/lib/postgresql/data
+            - name: mysql-storage
+              mountPath: /var/lib/mysql
             - name: init-script
               mountPath: /docker-entrypoint-initdb.d
           readinessProbe:
             exec:
-              command: ["pg_isready", "-U", "postgres"]
-            initialDelaySeconds: 10
+              command: ["sh", "-c", "mysqladmin ping -h 127.0.0.1 -u root -p$MYSQL_ROOT_PASSWORD --silent"]
+            initialDelaySeconds: 15
             periodSeconds: 5
           resources:
             requests:
-              cpu: "100m"
-              memory: "128Mi"
+              cpu: "150m"
+              memory: "384Mi"
             limits:
-              cpu: "500m"
-              memory: "512Mi"
+              cpu: "1000m"
+              memory: "768Mi"
       volumes:
         - name: init-script
           configMap:
-            name: postgres-init-script
+            name: mysql-init-script
             defaultMode: 0755
   volumeClaimTemplates:
     - metadata:
-        name: postgres-storage
+        name: mysql-storage
       spec:
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:
             storage: 5Gi
-

@@ -15,8 +15,8 @@ networks:
         - subnet: 172.28.0.0/16
 
 volumes:
-  postgres_data:
-    name: taskmanager_postgres_data
+  mysql_data:
+    name: taskmanager_mysql_data
   kafka_data:
     name: taskmanager_kafka_data
   prometheus_data:
@@ -33,34 +33,39 @@ volumes:
 services:
 
   # =========================================================================
-  # 1. PostgreSQL Datastore (Multi-Database per Service: user_db, task_db, notification_db)
+  # 1. MySQL 8.4 LTS Datastore (Multi-Database per Service: user_db, task_db, notification_db)
   # =========================================================================
-  postgresql:
-    image: postgres:16-alpine
-    container_name: taskmanager-postgresql
+  mysql:
+    image: mysql:8.4
+    container_name: taskmanager-mysql
     restart: unless-stopped
     networks:
       taskmanager-network:
         aliases:
-          - taskmanager-postgresql
-          - postgresql
+          - taskmanager-mysql
+          - mysql
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_ROOT_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       DB_USER_PASSWORD: ${DB_USER_PASSWORD}
       DB_TASK_PASSWORD: ${DB_TASK_PASSWORD}
       DB_NOTIF_PASSWORD: ${DB_NOTIF_PASSWORD}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mysql_data:/var/lib/mysql
       - ./infrastructure/init-scripts/init-multi-db.sh:/docker-entrypoint-initdb.d/init-multi-db.sh:ro
     ports:
       # Administrative loopback only (strictly concealed from public 0.0.0.0)
-      - "127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"
+      - "127.0.0.1:${MYSQL_HOST_PORT:-3306}:3306"
+    command:
+      - '--character-set-server=utf8mb4'
+      - '--collation-server=utf8mb4_0900_ai_ci'
+      - '--innodb-buffer-pool-size=256M'
+      - '--max-connections=150'
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 15
+      start_period: 20s
     deploy:
       resources:
         limits:
@@ -207,7 +212,7 @@ services:
     container_name: taskmanager-user-service
     restart: unless-stopped
     depends_on:
-      postgresql:
+      mysql:
         condition: service_healthy
       service-discovery:
         condition: service_healthy
@@ -220,7 +225,7 @@ services:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
       SERVER_PORT: 8081
       JAVA_OPTS: "-XX:+UseG1GC -XX:+UseContainerSupport -Xms128m -Xmx384m -XX:+ExitOnOutOfMemoryError"
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgresql:5432/user_db
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/user_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
       SPRING_DATASOURCE_USERNAME: user_app
       SPRING_DATASOURCE_PASSWORD: ${DB_USER_PASSWORD}
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka/
@@ -248,7 +253,7 @@ services:
     container_name: taskmanager-task-service
     restart: unless-stopped
     depends_on:
-      postgresql:
+      mysql:
         condition: service_healthy
       kafka:
         condition: service_healthy
@@ -263,11 +268,11 @@ services:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
       SERVER_PORT: 8082
       JAVA_OPTS: "-XX:+UseG1GC -XX:+UseContainerSupport -Xms128m -Xmx384m -XX:+ExitOnOutOfMemoryError"
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgresql:5432/task_db
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/task_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
       SPRING_DATASOURCE_USERNAME: task_app
       SPRING_DATASOURCE_PASSWORD: ${DB_TASK_PASSWORD}
-      DB_HOST: postgresql
-      DB_PORT: 5432
+      DB_HOST: mysql
+      DB_PORT: 3306
       DB_USERNAME: task_app
       DB_PASSWORD: ${DB_TASK_PASSWORD}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
@@ -295,7 +300,7 @@ services:
     container_name: taskmanager-notification-service
     restart: unless-stopped
     depends_on:
-      postgresql:
+      mysql:
         condition: service_healthy
       kafka:
         condition: service_healthy
@@ -310,11 +315,11 @@ services:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
       SERVER_PORT: 8083
       JAVA_OPTS: "-XX:+UseG1GC -XX:+UseContainerSupport -Xms128m -Xmx384m -XX:+ExitOnOutOfMemoryError"
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgresql:5432/notification_db
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/notification_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
       SPRING_DATASOURCE_USERNAME: notification_app
       SPRING_DATASOURCE_PASSWORD: ${DB_NOTIF_PASSWORD}
-      DB_HOST: postgresql
-      DB_PORT: 5432
+      DB_HOST: mysql
+      DB_PORT: 3306
       DB_USER: notification_app
       DB_PASS: ${DB_NOTIF_PASSWORD}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092

@@ -5,8 +5,8 @@ metadata:
   namespace: taskmanager
 data:
   SPRING_PROFILES_ACTIVE: "docker"
-  DB_HOST: "postgresql"
-  DB_PORT: "5432"
+  DB_HOST: "mysql"
+  DB_PORT: "3306"
   KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
   KAFKA_TOPIC_TASK_EVENTS: "task-events"
   KAFKA_TOPIC_TASK_EVENTS_DLT: "task-events.DLT"
@@ -16,24 +16,26 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: postgres-init-script
+  name: mysql-init-script
   namespace: taskmanager
 data:
   init-multi-db.sh: |
     #!/bin/bash
-    set -e
-    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
-      CREATE USER user_app WITH PASSWORD '${DB_USER_PASSWORD}';
-      CREATE DATABASE user_db OWNER user_app;
-      GRANT ALL PRIVILEGES ON DATABASE user_db TO user_app;
+    set -euo pipefail
+    mysql -u root -p"${MYSQL_ROOT_PASSWORD}" <<-EOSQL
+      CREATE DATABASE IF NOT EXISTS user_db CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+      CREATE USER IF NOT EXISTS 'user_app'@'%' IDENTIFIED BY '${DB_USER_PASSWORD}';
+      GRANT ALL PRIVILEGES ON user_db.* TO 'user_app'@'%';
 
-      CREATE USER task_app WITH PASSWORD '${DB_TASK_PASSWORD}';
-      CREATE DATABASE task_db OWNER task_app;
-      GRANT ALL PRIVILEGES ON DATABASE task_db TO task_app;
+      CREATE DATABASE IF NOT EXISTS task_db CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+      CREATE USER IF NOT EXISTS 'task_app'@'%' IDENTIFIED BY '${DB_TASK_PASSWORD}';
+      GRANT ALL PRIVILEGES ON task_db.* TO 'task_app'@'%';
 
-      CREATE USER notification_app WITH PASSWORD '${DB_NOTIF_PASSWORD}';
-      CREATE DATABASE notification_db OWNER notification_app;
-      GRANT ALL PRIVILEGES ON DATABASE notification_db TO notification_app;
+      CREATE DATABASE IF NOT EXISTS notification_db CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+      CREATE USER IF NOT EXISTS 'notification_app'@'%' IDENTIFIED BY '${DB_NOTIF_PASSWORD}';
+      GRANT ALL PRIVILEGES ON notification_db.* TO 'notification_app'@'%';
+
+      FLUSH PRIVILEGES;
     EOSQL
 ---
 apiVersion: v1
@@ -71,6 +73,3 @@ data:
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         }
     }
-
-
-    

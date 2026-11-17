@@ -6,7 +6,7 @@ namespace: taskmanager
 resources:
   - 00-namespace.yaml
   - 01-configmap.yaml
-  - 03-postgresql.yaml
+  - 03-mysql.yaml
   - 04-kafka.yaml
   - 05-service-discovery.yaml
   - 06-api-gateway.yaml

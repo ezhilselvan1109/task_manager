@@ -45,7 +45,7 @@ spec:
             - name: JAVA_OPTS
               value: "-XX:+UseG1GC -XX:+UseContainerSupport -Xms128m -Xmx256m"
             - name: SPRING_DATASOURCE_URL
-              value: "jdbc:postgresql://postgresql:5432/notification_db"
+              value: "jdbc:mysql://mysql:3306/notification_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8"
             - name: SPRING_DATASOURCE_USERNAME
               value: "notification_app"
             - name: SPRING_DATASOURCE_PASSWORD

@@ -13,18 +13,20 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
 
 /**
  * Entity representing an in-app notification stored in notification_db.
- * Conforms to DOC-DB-004 and DOC-DEV-006.
+ * Conforms to DOC-DB-004, DOC-DEV-006, and ADR-009 (MySQL 8.4 CHAR(36) UUID & is_read column).
  */
 @Entity
 @Table(name = "notifications", indexes = {
         @Index(name = "idx_notifications_user_created", columnList = "user_id, created_at"),
-        @Index(name = "idx_notifications_user_unread", columnList = "user_id, read"),
+        @Index(name = "idx_notifications_user_unread", columnList = "user_id, is_read"),
         @Index(name = "idx_notifications_task_id", columnList = "task_id")
 })
 @Getter
@@ -36,12 +38,16 @@ public class NotificationEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "id", length = 36, columnDefinition = "CHAR(36)")
     private UUID id;
 
-    @Column(name = "user_id", nullable = false)
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "user_id", nullable = false, length = 36, columnDefinition = "CHAR(36)")
     private UUID userId;
 
-    @Column(name = "task_id")
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "task_id", length = 36, columnDefinition = "CHAR(36)")
     private UUID taskId;
 
     @Column(name = "event_type", nullable = false, length = 50)
@@ -53,7 +59,7 @@ public class NotificationEntity {
     @Column(name = "message", nullable = false, length = 1000)
     private String message;
 
-    @Column(name = "read", nullable = false)
+    @Column(name = "is_read", nullable = false)
     @Builder.Default
     private boolean read = false;
 
